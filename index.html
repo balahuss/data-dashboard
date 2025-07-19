@@ -343,6 +343,7 @@
             border-radius: 8px;
             margin: 20px 40px;
             display: none;
+            white-space: pre-line;
         }
 
         .error.active {
@@ -410,7 +411,6 @@
             border-radius: 2px;
         }
 
-        /* Enhanced formatting styles */
         .currency-cell {
             text-align: right;
             font-weight: 600;
@@ -448,41 +448,138 @@
             margin-bottom: 5px;
             color: #374151;
         }
+
+        .approach-indicator {
+            background: #f0f9ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 40px;
+            font-size: 0.9rem;
+            color: #1e40af;
+            display: none;
+        }
+
+        .approach-indicator.active {
+            display: block;
+        }
+
+        .debug-info {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 40px;
+            font-size: 0.8rem;
+            color: #6b7280;
+            font-family: 'Courier New', monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .debug-info.active {
+            display: block;
+        }
+
+        .source-selector {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 40px;
+        }
+
+        .source-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .source-option {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .source-option:hover {
+            border-color: #4f46e5;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+        }
+
+        .source-option.selected {
+            border-color: #4f46e5;
+            background: #f0f9ff;
+        }
+
+        .source-option h4 {
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .source-option p {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .source-option input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>📊 SharePoint Data Grid</h1>
-            <p>Auto-updating data grid from SharePoint CSV files</p>
+            <p>Auto-updating data grid with multiple data source support</p>
+        </div>
+
+        <div class="source-selector">
+            <h3 style="color: #374151; margin-bottom: 15px;">📁 Choose Your Data Source</h3>
+            <div class="source-options">
+                <div class="source-option" onclick="selectDataSource('github', this)">
+                    <h4>🐙 GitHub-Hosted CSV</h4>
+                    <p>Upload CSV to your GitHub repo (most reliable)</p>
+                    <input type="text" id="github-url" placeholder="./data.csv or full GitHub raw URL" onclick="event.stopPropagation()">
+                </div>
+                <div class="source-option" onclick="selectDataSource('sharepoint', this)">
+                    <h4>📊 SharePoint/OneDrive</h4>
+                    <p>Direct link from SharePoint or OneDrive</p>
+                    <input type="text" id="sharepoint-url" placeholder="SharePoint or OneDrive CSV URL" onclick="event.stopPropagation()">
+                </div>
+                <div class="source-option" onclick="selectDataSource('google', this)">
+                    <h4>📝 Google Sheets</h4>
+                    <p>Public Google Sheets export URL</p>
+                    <input type="text" id="google-url" placeholder="https://docs.google.com/spreadsheets/d/.../export?format=csv" onclick="event.stopPropagation()">
+                </div>
+                <div class="source-option" onclick="selectDataSource('custom', this)">
+                    <h4>🌐 Custom URL</h4>
+                    <p>Any public CSV URL with CORS support</p>
+                    <input type="text" id="custom-url" placeholder="https://example.com/data.csv" onclick="event.stopPropagation()">
+                </div>
+            </div>
         </div>
 
         <div class="data-source-section">
             <div style="text-align: center; padding: 20px;">
                 <button class="load-btn" onclick="loadData()" id="load-btn">
-                    🔄 Refresh Data
+                    🔄 Load Data
                 </button>
                 <button class="load-btn" onclick="forceReload()" id="force-btn" style="margin-left: 10px; background: #f59e0b;">
                     ⚡ Force Reload
                 </button>
-            </div>
-            
-            <!-- Admin Controls (Hidden) -->
-            <div id="adminSection" style="display: none;">
-                <div class="data-source-config">
-                    <div class="input-group">
-                        <label for="csv-url">CSV File URL (Admin Only):</label>
-                        <input type="text" id="csv-url" placeholder="OneDrive CSV URL" />
-                    </div>
-                    <button class="load-btn" onclick="loadData()" id="admin-load-btn">
-                        🔄 Load Custom URL
-                    </button>
-                </div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 10px;">
-                <button onclick="toggleAdminMode()" style="background: transparent; border: 1px solid #ccc; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                    ⚙️ Admin
+                <button class="load-btn" onclick="toggleDebug()" id="debug-btn" style="margin-left: 10px; background: #6b7280;">
+                    🔍 Toggle Debug
                 </button>
             </div>
             
@@ -493,19 +590,22 @@
         </div>
 
         <div class="setup-info">
-            <h3>📋 Setup Instructions:</h3>
+            <h3>🚀 Quick Setup Guide:</h3>
             <ol>
-                <li><strong>Create Power Automate Flow:</strong> Set up a flow that exports your Excel Online file to CSV when changed</li>
-                <li><strong>Get CSV URL:</strong> Right-click your CSV file in SharePoint → "Copy link" → paste above</li>
-                <li><strong>Share this HTML file:</strong> Upload this file to SharePoint for colleagues to access</li>
-                <li><strong>Enable auto-refresh:</strong> Check the box above to automatically fetch latest data</li>
+                <li><strong>GitHub (Recommended):</strong> Upload your CSV to the same GitHub repo as this HTML file</li>
+                <li><strong>Google Sheets:</strong> Make sheet public → File → Share → "Anyone on internet can view" → Get CSV export URL</li>
+                <li><strong>SharePoint:</strong> Share file publicly → Right-click → "Copy link" → Use direct download URL</li>
+                <li><strong>Enable auto-refresh:</strong> Check the box above for automatic updates</li>
             </ol>
         </div>
+
+        <div class="approach-indicator" id="approach-indicator"></div>
+        <div class="debug-info" id="debug-info"></div>
 
         <div class="status-bar" id="status-bar">
             <div class="status-info">
                 <div class="status-indicator" id="status-indicator"></div>
-                <span id="status-text">Ready to load data</span>
+                <span id="status-text">Choose a data source above</span>
             </div>
             <div class="last-updated" id="last-updated"></div>
         </div>
@@ -514,7 +614,7 @@
 
         <div class="loading" id="loading">
             <div class="loading-spinner"></div>
-            <div>Loading data from SharePoint...</div>
+            <div>Loading data...</div>
         </div>
 
         <div class="controls" id="controls">
@@ -557,34 +657,70 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
-        // CONFIGURATION - Replace with your actual OneDrive CSV URL
-        const DEFAULT_CSV_URL = "https://unicef-my.sharepoint.com/personal/hhabu_unicef_org/Documents/Documents/data.csv?d=w612593da66134e3aaac2678d9309b211&download=1";
-
-        
+        // CONFIGURATION
+        let currentDataSource = 'github';
         let table = null;
         let allData = null;
         let allHeaders = null;
         let selectedFields = new Set();
         let refreshInterval = null;
+        let debugMode = false;
         
+        // CORS Proxy options (fallbacks)
+        const CORS_PROXIES = [
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            'https://cors-anywhere.herokuapp.com/'
+        ];
+
+        // Default URLs for each source type
+        const DEFAULT_URLS = {
+            github: './data.csv',
+            sharepoint: '',
+            google: '',
+            custom: ''
+        };
+
         // Event handlers
         document.getElementById('field-display').addEventListener('click', toggleFieldDropdown);
         document.addEventListener('click', closeFieldDropdownOnClickOutside);
 
-        // Auto-load data on page load
+        // Initialize
         window.addEventListener('load', () => {
-            // Auto-load after 1 second to let the page settle
-            setTimeout(() => loadData(), 1000);
+            // Select GitHub by default
+            const githubOption = document.querySelector('.source-option');
+            selectDataSource('github', githubOption);
+            showStatusBar();
         });
 
-        async function loadData() {
-            const adminMode = document.getElementById('adminSection').style.display !== 'none';
-            const csvUrl = adminMode ? 
-                document.getElementById('csv-url').value.trim() : 
-                DEFAULT_CSV_URL;
+        function selectDataSource(sourceType, element) {
+            currentDataSource = sourceType;
             
-            if (!csvUrl || csvUrl.includes("XXXXXX")) {
-                showError('⚠️ Data source not configured. Contact admin to set up the CSV URL.');
+            // Update UI
+            document.querySelectorAll('.source-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            
+            // Set default URL if empty
+            const input = document.getElementById(`${sourceType}-url`);
+            if (!input.value && DEFAULT_URLS[sourceType]) {
+                input.value = DEFAULT_URLS[sourceType];
+            }
+            
+            debug(`Selected data source: ${sourceType}`);
+        }
+
+        function getCurrentUrl() {
+            const input = document.getElementById(`${currentDataSource}-url`);
+            return input ? input.value.trim() : '';
+        }
+
+        async function loadData() {
+            const csvUrl = getCurrentUrl();
+            
+            if (!csvUrl) {
+                showError('⚠️ Please enter a URL for your selected data source.');
                 return;
             }
 
@@ -593,144 +729,213 @@
             showLoading();
             hideError();
             setStatus('loading', 'Loading data...');
+            showApproachIndicator('Initializing...');
 
             try {
-                // Try multiple URL formats for SharePoint compatibility
-                const urlsToTry = generateSharePointUrls(csvUrl);
+                debug(`Starting data load from: ${csvUrl}`);
+                debug(`Data source type: ${currentDataSource}`);
                 
-                let csvText = null;
-                let lastError = null;
+                const csvText = await fetchCsvData(csvUrl);
                 
-                for (let i = 0; i < urlsToTry.length; i++) {
-                    try {
-                        console.log(`Trying URL ${i + 1}/${urlsToTry.length}:`, urlsToTry[i]);
-                        
-                        const response = await fetch(urlsToTry[i], {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'text/csv,text/plain,*/*',
-                                'Cache-Control': 'no-cache'
-                            },
-                            credentials: 'include'
-                        });
-
-                        if (response.ok) {
-                            csvText = await response.text();
-                            if (csvText && csvText.trim() !== '' && !csvText.includes('<!DOCTYPE html>')) {
-                                console.log('Successfully loaded CSV from:', urlsToTry[i]);
-                                break;
-                            }
-                        }
-                        lastError = `HTTP ${response.status}: ${response.statusText}`;
-                    } catch (err) {
-                        lastError = err.message;
-                        console.log(`URL ${i + 1} failed:`, err.message);
-                    }
-                }
-                
-                if (!csvText || csvText.trim() === '' || csvText.includes('<!DOCTYPE html>')) {
-                    throw new Error('Unable to load CSV data. ' + (lastError || 'Please contact admin if this problem persists.'));
+                if (!csvText || csvText.trim() === '') {
+                    throw new Error('No data received from the URL');
                 }
 
+                debug(`Data loaded successfully. Length: ${csvText.length} characters`);
+                
                 parseAndDisplayData(csvText);
                 setStatus('success', 'Data loaded successfully');
                 updateLastUpdated();
+                hideApproachIndicator();
                 
             } catch (error) {
                 console.error('Error loading data:', error);
-                let errorMessage = '❌ Error loading data: ' + error.message;
-                
-                if (error.message.includes('CORS') || error.message.includes('401') || error.message.includes('403')) {
-                    errorMessage += '\n\n💡 Contact admin if this issue persists.';
-                }
-                
+                const errorMessage = `❌ Error loading data: ${error.message}\n\n💡 Suggestions:\n• Try a different data source type\n• Ensure your file is publicly accessible\n• Check the URL format\n• Enable debug mode for more details`;
                 showError(errorMessage);
                 setStatus('error', 'Failed to load data');
                 hideLoading();
+                hideApproachIndicator();
             } finally {
                 loadBtn.disabled = false;
             }
         }
 
-        function forceReload() {
-            // Clear any cache and force reload
-            if ('caches' in window) {
-                caches.keys().then(names => {
-                    names.forEach(name => {
-                        caches.delete(name);
-                    });
+        async function fetchCsvData(csvUrl) {
+            const approaches = [
+                {
+                    name: 'Direct fetch',
+                    fn: () => fetch(csvUrl, { 
+                        headers: { 'Accept': 'text/csv,text/plain,*/*' },
+                        cache: 'no-cache'
+                    })
+                },
+                {
+                    name: 'Direct fetch with credentials',
+                    fn: () => fetch(csvUrl, { 
+                        headers: { 'Accept': 'text/csv,text/plain,*/*' },
+                        credentials: 'include',
+                        cache: 'no-cache'
+                    })
+                },
+                {
+                    name: 'No-CORS mode',
+                    fn: () => fetch(csvUrl, { mode: 'no-cors' })
+                }
+            ];
+
+            // Add CORS proxy approaches
+            CORS_PROXIES.forEach((proxy, index) => {
+                approaches.push({
+                    name: `CORS Proxy ${index + 1} (${proxy.split('/')[2]})`,
+                    fn: () => fetch(proxy + encodeURIComponent(csvUrl))
+                });
+            });
+
+            // Add SharePoint-specific URL variations if it's a SharePoint URL
+            if (csvUrl.includes('sharepoint.com') || csvUrl.includes('onedrive.live.com')) {
+                const sharePointUrls = generateSharePointUrls(csvUrl);
+                sharePointUrls.forEach((url, index) => {
+                    if (url !== csvUrl) {
+                        approaches.push({
+                            name: `SharePoint URL variation ${index + 1}`,
+                            fn: () => fetch(url, { 
+                                headers: { 'Accept': 'text/csv,text/plain,*/*' },
+                                credentials: 'include'
+                            })
+                        });
+                    }
                 });
             }
-            loadData();
-        }
 
-        function toggleAdminMode() {
-            const adminSection = document.getElementById('adminSection');
-            const isVisible = adminSection.style.display !== 'none';
+            let lastError = null;
             
-            if (isVisible) {
-                adminSection.style.display = 'none';
-            } else {
-                const password = prompt('Enter admin password:');
-                if (password === 'unicef2025') { // Change this password!
-                    adminSection.style.display = 'block';
-                    document.getElementById('csv-url').value = DEFAULT_CSV_URL;
-                } else if (password !== null) {
-                    alert('❌ Incorrect password');
+            for (let i = 0; i < approaches.length; i++) {
+                const approach = approaches[i];
+                try {
+                    debug(`Trying approach ${i + 1}/${approaches.length}: ${approach.name}`);
+                    showApproachIndicator(`Trying: ${approach.name} (${i + 1}/${approaches.length})`);
+                    
+                    const response = await approach.fn();
+                    
+                    if (response.ok) {
+                        const text = await response.text();
+                        
+                        // Validate the response
+                        if (text && 
+                            text.trim() !== '' && 
+                            !text.includes('<!DOCTYPE html>') && 
+                            !text.includes('<html>') &&
+                            !text.includes('Access Denied') &&
+                            !text.includes('Sign in to your account')) {
+                            
+                            debug(`✅ Success with: ${approach.name}`);
+                            showApproachIndicator(`✅ Success with: ${approach.name}`);
+                            return text;
+                        } else {
+                            debug(`❌ Invalid response from ${approach.name}: ${text.substring(0, 100)}...`);
+                        }
+                    } else {
+                        debug(`❌ HTTP ${response.status} from ${approach.name}: ${response.statusText}`);
+                    }
+                    
+                    lastError = `${approach.name}: HTTP ${response.status} - ${response.statusText}`;
+                    
+                } catch (err) {
+                    debug(`❌ Error with ${approach.name}: ${err.message}`);
+                    lastError = `${approach.name}: ${err.message}`;
                 }
             }
+            
+            throw new Error(`All fetch methods failed. Last error: ${lastError}`);
         }
 
         function generateSharePointUrls(originalUrl) {
-            const urls = [];
+            const urls = [originalUrl];
             
-            // Clean the original URL
-            let baseUrl = originalUrl.replace(/\?.*$/, ''); // Remove query parameters
-            
-            // If it's a SharePoint URL, generate multiple format variations
-            if (baseUrl.includes('sharepoint.com')) {
-                // Extract the site and file path
-                const match = baseUrl.match(/https:\/\/([^\/]+)\/teams\/([^\/]+)\/(.+)/);
-                if (match) {
-                    const [, domain, site, filePath] = match;
-                    const cleanFilePath = filePath.replace(/Shared%20Documents/, 'Shared Documents');
-                    
-                    // Format 1: Direct file access
-                    urls.push(`https://${domain}/teams/${site}/${cleanFilePath}`);
-                    
-                    // Format 2: With download parameter
-                    urls.push(`https://${domain}/teams/${site}/${cleanFilePath}?download=1`);
-                    
-                    // Format 3: Via _layouts endpoint
-                    urls.push(`https://${domain}/teams/${site}/_layouts/15/download.aspx?SourceUrl=${encodeURIComponent('/' + cleanFilePath)}`);
-                    
-                    // Format 4: REST API approach
-                    urls.push(`https://${domain}/teams/${site}/_api/web/GetFileByServerRelativeUrl('/${cleanFilePath}')/$value`);
-                    
-                    // Format 5: Relative path (if both files are on same site)
-                    if (window.location.href.includes(domain)) {
-                        urls.push(`/${cleanFilePath}`);
-                        urls.push(`./${cleanFilePath.split('/').pop()}`);
-                    }
+            if (originalUrl.includes('sharepoint.com')) {
+                // Try different SharePoint URL formats
+                const baseUrl = originalUrl.split('?')[0];
+                
+                // Add download parameter variations
+                urls.push(baseUrl + '?download=1');
+                urls.push(baseUrl + '?web=1&download=1');
+                urls.push(baseUrl + '?noredirect=true&download=1');
+                
+                // Try _layouts variations
+                if (originalUrl.includes('_layouts/15/')) {
+                    const layoutsVariation = originalUrl.replace('_layouts/15/download.aspx', '_layouts/15/Doc.aspx');
+                    urls.push(layoutsVariation);
+                    urls.push(layoutsVariation.replace('action=default', 'action=download'));
                 }
                 
-                // Format 6: Try the original URL as-is
-                urls.push(originalUrl);
-                
-                // Format 7: Original with different parameters
-                urls.push(originalUrl.split('?')[0] + '?web=1');
-                urls.push(originalUrl.split('?')[0] + '?noredirect=true');
-            } else {
-                // Not a SharePoint URL, try as-is
-                urls.push(originalUrl);
+                // Extract file path for API calls
+                const pathMatch = originalUrl.match(/\/sites\/[^\/]+\/(.+?)(\?|$)/);
+                if (pathMatch) {
+                    const filePath = pathMatch[1];
+                    const siteBase = originalUrl.split('/sites/')[0] + '/sites/' + originalUrl.split('/sites/')[1].split('/')[0];
+                    urls.push(`${siteBase}/_api/web/GetFileByServerRelativeUrl('/${filePath}')/$value`);
+                }
             }
             
-            // Remove duplicates
             return [...new Set(urls)];
+        }
+
+        function forceReload() {
+            // Clear cache
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+            
+            // Clear debug log
+            document.getElementById('debug-info').innerHTML = '';
+            
+            loadData();
+        }
+
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugInfo = document.getElementById('debug-info');
+            const debugBtn = document.getElementById('debug-btn');
+            
+            if (debugMode) {
+                debugInfo.classList.add('active');
+                debugBtn.textContent = '🔍 Hide Debug';
+                debugBtn.style.background = '#059669';
+                debug('Debug mode enabled');
+            } else {
+                debugInfo.classList.remove('active');
+                debugBtn.textContent = '🔍 Show Debug';
+                debugBtn.style.background = '#6b7280';
+            }
+        }
+
+        function debug(message) {
+            console.log(message);
+            if (debugMode) {
+                const debugInfo = document.getElementById('debug-info');
+                const timestamp = new Date().toLocaleTimeString();
+                debugInfo.innerHTML += `[${timestamp}] ${message}\n`;
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+        }
+
+        function showApproachIndicator(message) {
+            const indicator = document.getElementById('approach-indicator');
+            indicator.textContent = message;
+            indicator.classList.add('active');
+        }
+
+        function hideApproachIndicator() {
+            const indicator = document.getElementById('approach-indicator');
+            indicator.classList.remove('active');
         }
 
         function parseAndDisplayData(csvText) {
             try {
+                debug('Parsing CSV data...');
+                
                 const parseResult = Papa.parse(csvText, {
                     header: true,
                     dynamicTyping: true,
@@ -740,19 +945,22 @@
                 });
 
                 if (parseResult.errors.length > 0) {
-                    console.warn('CSV parsing warnings:', parseResult.errors);
+                    debug('CSV parsing warnings: ' + JSON.stringify(parseResult.errors));
                 }
 
                 const data = parseResult.data;
                 
                 if (!data || data.length === 0) {
-                    throw new Error('No data found in CSV file');
+                    throw new Error('No data rows found in CSV file');
                 }
 
-                // Get headers and clean them
-                const headers = Object.keys(data[0]).map(header => {
+                // Clean headers
+                const rawHeaders = Object.keys(data[0]);
+                const headers = rawHeaders.map(header => {
                     return header.trim().replace(/[^\w\s-]/g, '_').replace(/\s+/g, '_') || 'Unnamed_Column';
                 });
+
+                debug(`Found ${headers.length} columns: ${headers.join(', ')}`);
 
                 // Clean data
                 const cleanData = data.filter(row => {
@@ -760,7 +968,7 @@
                 }).map(row => {
                     const cleanRow = {};
                     headers.forEach((header, index) => {
-                        const originalHeader = Object.keys(data[0])[index];
+                        const originalHeader = rawHeaders[index];
                         let value = row[originalHeader];
                         
                         if (value === null || value === undefined) {
@@ -774,8 +982,7 @@
                     return cleanRow;
                 });
 
-                console.log('Headers found:', headers);
-                console.log('Data rows:', cleanData.length);
+                debug(`Processed ${cleanData.length} data rows`);
 
                 allData = cleanData;
                 allHeaders = headers;
@@ -916,7 +1123,6 @@
                 resizableRows: false,
                 rowHeight: 40,
                 sortOrderReverse: true,
-                groupBy: false,
                 selectable: true,
                 responsiveLayout: "collapse",
                 placeholder: "No data available",
@@ -932,6 +1138,7 @@
             });
 
             addDownloadButtons();
+            debug(`Table created with ${data.length} rows and ${headers.length} columns`);
         }
 
         function addDownloadButtons() {
@@ -976,21 +1183,20 @@
             const checkbox = document.getElementById('auto-refresh');
             
             if (checkbox.checked) {
-                // Start auto-refresh every 5 minutes
                 refreshInterval = setInterval(() => {
-                    if (document.getElementById('csv-url').value.trim()) {
-                        console.log('Auto-refreshing data...');
+                    const url = getCurrentUrl();
+                    if (url) {
+                        debug('Auto-refreshing data...');
                         loadData();
                     }
                 }, 5 * 60 * 1000); // 5 minutes
-                console.log('Auto-refresh enabled (5 minutes)');
+                debug('Auto-refresh enabled (5 minutes)');
             } else {
-                // Stop auto-refresh
                 if (refreshInterval) {
                     clearInterval(refreshInterval);
                     refreshInterval = null;
                 }
-                console.log('Auto-refresh disabled');
+                debug('Auto-refresh disabled');
             }
         }
 
@@ -1001,12 +1207,10 @@
 
         function showLoading() {
             document.getElementById('loading').classList.add('active');
-            document.getElementById('load-btn').disabled = true;
         }
 
         function hideLoading() {
             document.getElementById('loading').classList.remove('active');
-            document.getElementById('load-btn').disabled = false;
         }
 
         function showError(message) {
@@ -1044,11 +1248,13 @@
             lastUpdated.textContent = 'Last updated: ' + new Date().toLocaleString();
         }
 
-        // Handle Enter key in URL input
-        document.getElementById('csv-url').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                loadData();
-            }
+        // Handle Enter key in URL inputs
+        ['github-url', 'sharepoint-url', 'google-url', 'custom-url'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loadData();
+                }
+            });
         });
     </script>
 </body>
