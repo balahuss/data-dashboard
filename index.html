@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharePoint Data Grid - Auto-Updating</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.5.2/css/tabulator.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .data-source-section {
+            padding: 30px 40px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .data-source-config {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #374151;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .load-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            align-self: end;
+        }
+
+        .load-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .load-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .auto-refresh input[type="checkbox"] {
+            width: auto;
+        }
+
+        .status-bar {
+            padding: 15px 40px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            display: none;
+        }
+
+        .status-bar.active {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .status-indicator.loading {
+            background: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.error {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .last-updated {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .controls {
+            padding: 20px 40px;
+            background: #f9fafb;
+            display: none;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .controls.active {
+            display: flex;
+        }
+
+        .field-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .field-selector label {
+            font-weight: 600;
+            color: #374151;
+            white-space: nowrap;
+        }
+
+        .multiselect-container {
+            position: relative;
+            flex: 1;
+        }
+
+        .multiselect-display {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 36px;
+        }
+
+        .multiselect-display:hover {
+            border-color: #9ca3af;
+        }
+
+        .selected-count {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .multiselect-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .multiselect-dropdown.active {
+            display: block;
+        }
+
+        .multiselect-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            display: flex;
+            gap: 10px;
+        }
+
+        .multiselect-header button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .multiselect-header button:hover {
+            background: #3730a3;
+        }
+
+        .multiselect-option {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .multiselect-option:hover {
+            background: #f3f4f6;
+        }
+
+        .multiselect-option input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-left: auto;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-container {
+            padding: 40px;
+            display: none;
+        }
+
+        .table-container.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6b7280;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 40px;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .tabulator {
+            font-size: 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .tabulator .tabulator-header {
+            background: #f8fafc;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tabulator .tabulator-col-title {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .tabulator .tabulator-row {
+            min-height: 40px;
+            max-height: 80px;
+        }
+
+        .tabulator .tabulator-cell {
+            padding: 8px 12px;
+            vertical-align: top;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-height: 80px;
+            position: relative;
+        }
+
+        .tabulator .tabulator-cell:hover {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow: visible;
+            background: #f0f9ff;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-radius: 4px;
+            max-height: none;
+        }
+
+        .cell-content {
+            max-height: 64px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        .cell-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .cell-content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .cell-content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+
+        /* Enhanced formatting styles */
+        .currency-cell {
+            text-align: right;
+            font-weight: 600;
+            color: #059669;
+        }
+
+        .date-cell {
+            color: #4f46e5;
+            font-weight: 500;
+        }
+
+        .number-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        .setup-info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 40px;
+        }
+
+        .setup-info h3 {
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+
+        .setup-info ol {
+            margin-left: 20px;
+        }
+
+        .setup-info li {
+            margin-bottom: 5px;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 SharePoint Data Grid</h1>
+            <p>Auto-updating data grid from SharePoint CSV files</p>
+        </div>
+
+        <div class="data-source-section">
+            <div style="text-align: center; padding: 20px;">
+                <button class="load-btn" onclick="loadData()" id="load-btn">
+                    🔄 Refresh Data
+                </button>
+                <button class="load-btn" onclick="forceReload()" id="force-btn" style="margin-left: 10px; background: #f59e0b;">
+                    ⚡ Force Reload
+                </button>
+            </div>
+            
+            <!-- Admin Controls (Hidden) -->
+            <div id="adminSection" style="display: none;">
+                <div class="data-source-config">
+                    <div class="input-group">
+                        <label for="csv-url">CSV File URL (Admin Only):</label>
+                        <input type="text" id="csv-url" placeholder="OneDrive CSV URL" />
+                    </div>
+                    <button class="load-btn" onclick="loadData()" id="admin-load-btn">
+                        🔄 Load Custom URL
+                    </button>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 10px;">
+                <button onclick="toggleAdminMode()" style="background: transparent; border: 1px solid #ccc; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                    ⚙️ Admin
+                </button>
+            </div>
+            
+            <div class="auto-refresh">
+                <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()">
+                <label for="auto-refresh">Auto-refresh every 5 minutes</label>
+            </div>
+        </div>
+
+        <div class="setup-info">
+            <h3>📋 Setup Instructions:</h3>
+            <ol>
+                <li><strong>Create Power Automate Flow:</strong> Set up a flow that exports your Excel Online file to CSV when changed</li>
+                <li><strong>Get CSV URL:</strong> Right-click your CSV file in SharePoint → "Copy link" → paste above</li>
+                <li><strong>Share this HTML file:</strong> Upload this file to SharePoint for colleagues to access</li>
+                <li><strong>Enable auto-refresh:</strong> Check the box above to automatically fetch latest data</li>
+            </ol>
+        </div>
+
+        <div class="status-bar" id="status-bar">
+            <div class="status-info">
+                <div class="status-indicator" id="status-indicator"></div>
+                <span id="status-text">Ready to load data</span>
+            </div>
+            <div class="last-updated" id="last-updated"></div>
+        </div>
+
+        <div class="error" id="error-message"></div>
+
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div>Loading data from SharePoint...</div>
+        </div>
+
+        <div class="controls" id="controls">
+            <div class="field-selector">
+                <label>Fields:</label>
+                <div class="multiselect-container">
+                    <div class="multiselect-display" id="field-display">
+                        <span id="field-display-text">All fields selected</span>
+                        <span class="selected-count" id="selected-count"></span>
+                        <span>▼</span>
+                    </div>
+                    <div class="multiselect-dropdown" id="field-dropdown">
+                        <div class="multiselect-header">
+                            <button onclick="selectAllFields()">Select All</button>
+                            <button onclick="clearAllFields()">Clear All</button>
+                        </div>
+                        <div id="field-options"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="row-count">0</div>
+                    <div class="stat-label">Rows</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="col-count">0</div>
+                    <div class="stat-label">Columns</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container" id="table-container">
+            <div id="data-table"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.5.2/js/tabulator.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <script>
+        // CONFIGURATION - Replace with your actual OneDrive CSV URL
+        const DEFAULT_CSV_URL = "https://unicef-my.sharepoint.com/personal/hhabu_unicef_org/_layouts/15/download.aspx?share=EdqTJWETZjpOqsJnjZMJshEBE0jIH0pX1MTT3oJK4J9QXw&download=1";
+
+        
+        let table = null;
+        let allData = null;
+        let allHeaders = null;
+        let selectedFields = new Set();
+        let refreshInterval = null;
+        
+        // Event handlers
+        document.getElementById('field-display').addEventListener('click', toggleFieldDropdown);
+        document.addEventListener('click', closeFieldDropdownOnClickOutside);
+
+        // Auto-load data on page load
+        window.addEventListener('load', () => {
+            // Auto-load after 1 second to let the page settle
+            setTimeout(() => loadData(), 1000);
+        });
+
+        async function loadData() {
+            const adminMode = document.getElementById('adminSection').style.display !== 'none';
+            const csvUrl = adminMode ? 
+                document.getElementById('csv-url').value.trim() : 
+                DEFAULT_CSV_URL;
+            
+            if (!csvUrl || csvUrl.includes("XXXXXX")) {
+                showError('⚠️ Data source not configured. Contact admin to set up the CSV URL.');
+                return;
+            }
+
+            const loadBtn = document.getElementById('load-btn');
+            loadBtn.disabled = true;
+            showLoading();
+            hideError();
+            setStatus('loading', 'Loading data...');
+
+            try {
+                // Try multiple URL formats for SharePoint compatibility
+                const urlsToTry = generateSharePointUrls(csvUrl);
+                
+                let csvText = null;
+                let lastError = null;
+                
+                for (let i = 0; i < urlsToTry.length; i++) {
+                    try {
+                        console.log(`Trying URL ${i + 1}/${urlsToTry.length}:`, urlsToTry[i]);
+                        
+                        const response = await fetch(urlsToTry[i], {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'text/csv,text/plain,*/*',
+                                'Cache-Control': 'no-cache'
+                            },
+                            credentials: 'include'
+                        });
+
+                        if (response.ok) {
+                            csvText = await response.text();
+                            if (csvText && csvText.trim() !== '' && !csvText.includes('<!DOCTYPE html>')) {
+                                console.log('Successfully loaded CSV from:', urlsToTry[i]);
+                                break;
+                            }
+                        }
+                        lastError = `HTTP ${response.status}: ${response.statusText}`;
+                    } catch (err) {
+                        lastError = err.message;
+                        console.log(`URL ${i + 1} failed:`, err.message);
+                    }
+                }
+                
+                if (!csvText || csvText.trim() === '' || csvText.includes('<!DOCTYPE html>')) {
+                    throw new Error('Unable to load CSV data. ' + (lastError || 'Please contact admin if this problem persists.'));
+                }
+
+                parseAndDisplayData(csvText);
+                setStatus('success', 'Data loaded successfully');
+                updateLastUpdated();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                let errorMessage = '❌ Error loading data: ' + error.message;
+                
+                if (error.message.includes('CORS') || error.message.includes('401') || error.message.includes('403')) {
+                    errorMessage += '\n\n💡 Contact admin if this issue persists.';
+                }
+                
+                showError(errorMessage);
+                setStatus('error', 'Failed to load data');
+                hideLoading();
+            } finally {
+                loadBtn.disabled = false;
+            }
+        }
+
+        function forceReload() {
+            // Clear any cache and force reload
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    });
+                });
+            }
+            loadData();
+        }
+
+        function toggleAdminMode() {
+            const adminSection = document.getElementById('adminSection');
+            const isVisible = adminSection.style.display !== 'none';
+            
+            if (isVisible) {
+                adminSection.style.display = 'none';
+            } else {
+                const password = prompt('Enter admin password:');
+                if (password === 'unicef2025') { // Change this password!
+                    adminSection.style.display = 'block';
+                    document.getElementById('csv-url').value = DEFAULT_CSV_URL;
+                } else if (password !== null) {
+                    alert('❌ Incorrect password');
+                }
+            }
+        }
+
+        function generateSharePointUrls(originalUrl) {
+            const urls = [];
+            
+            // Clean the original URL
+            let baseUrl = originalUrl.replace(/\?.*$/, ''); // Remove query parameters
+            
+            // If it's a SharePoint URL, generate multiple format variations
+            if (baseUrl.includes('sharepoint.com')) {
+                // Extract the site and file path
+                const match = baseUrl.match(/https:\/\/([^\/]+)\/teams\/([^\/]+)\/(.+)/);
+                if (match) {
+                    const [, domain, site, filePath] = match;
+                    const cleanFilePath = filePath.replace(/Shared%20Documents/, 'Shared Documents');
+                    
+                    // Format 1: Direct file access
+                    urls.push(`https://${domain}/teams/${site}/${cleanFilePath}`);
+                    
+                    // Format 2: With download parameter
+                    urls.push(`https://${domain}/teams/${site}/${cleanFilePath}?download=1`);
+                    
+                    // Format 3: Via _layouts endpoint
+                    urls.push(`https://${domain}/teams/${site}/_layouts/15/download.aspx?SourceUrl=${encodeURIComponent('/' + cleanFilePath)}`);
+                    
+                    // Format 4: REST API approach
+                    urls.push(`https://${domain}/teams/${site}/_api/web/GetFileByServerRelativeUrl('/${cleanFilePath}')/$value`);
+                    
+                    // Format 5: Relative path (if both files are on same site)
+                    if (window.location.href.includes(domain)) {
+                        urls.push(`/${cleanFilePath}`);
+                        urls.push(`./${cleanFilePath.split('/').pop()}`);
+                    }
+                }
+                
+                // Format 6: Try the original URL as-is
+                urls.push(originalUrl);
+                
+                // Format 7: Original with different parameters
+                urls.push(originalUrl.split('?')[0] + '?web=1');
+                urls.push(originalUrl.split('?')[0] + '?noredirect=true');
+            } else {
+                // Not a SharePoint URL, try as-is
+                urls.push(originalUrl);
+            }
+            
+            // Remove duplicates
+            return [...new Set(urls)];
+        }
+
+        function parseAndDisplayData(csvText) {
+            try {
+                const parseResult = Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    trimHeaders: true,
+                    delimitersToGuess: [',', '\t', '|', ';']
+                });
+
+                if (parseResult.errors.length > 0) {
+                    console.warn('CSV parsing warnings:', parseResult.errors);
+                }
+
+                const data = parseResult.data;
+                
+                if (!data || data.length === 0) {
+                    throw new Error('No data found in CSV file');
+                }
+
+                // Get headers and clean them
+                const headers = Object.keys(data[0]).map(header => {
+                    return header.trim().replace(/[^\w\s-]/g, '_').replace(/\s+/g, '_') || 'Unnamed_Column';
+                });
+
+                // Clean data
+                const cleanData = data.filter(row => {
+                    return Object.values(row).some(value => value !== null && value !== undefined && value !== '');
+                }).map(row => {
+                    const cleanRow = {};
+                    headers.forEach((header, index) => {
+                        const originalHeader = Object.keys(data[0])[index];
+                        let value = row[originalHeader];
+                        
+                        if (value === null || value === undefined) {
+                            value = '';
+                        } else if (typeof value === 'number') {
+                            cleanRow[header] = value;
+                            return;
+                        }
+                        cleanRow[header] = String(value).trim();
+                    });
+                    return cleanRow;
+                });
+
+                console.log('Headers found:', headers);
+                console.log('Data rows:', cleanData.length);
+
+                allData = cleanData;
+                allHeaders = headers;
+                selectedFields = new Set(headers);
+                
+                setupFieldSelector(headers);
+                createTable(cleanData, headers);
+                updateStats(cleanData.length, headers.length);
+                
+                hideLoading();
+                showControls();
+                showTable();
+                showStatusBar();
+                
+            } catch (error) {
+                throw new Error('Failed to parse CSV: ' + error.message);
+            }
+        }
+
+        function setupFieldSelector(headers) {
+            const optionsContainer = document.getElementById('field-options');
+            optionsContainer.innerHTML = '';
+            
+            headers.forEach(header => {
+                const option = document.createElement('div');
+                option.className = 'multiselect-option';
+                option.innerHTML = `
+                    <input type="checkbox" id="field_${header}" checked onchange="handleFieldChange('${header}')">
+                    <label for="field_${header}">${header}</label>
+                `;
+                optionsContainer.appendChild(option);
+            });
+            
+            updateFieldDisplay();
+        }
+
+        function toggleFieldDropdown() {
+            const dropdown = document.getElementById('field-dropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        function closeFieldDropdownOnClickOutside(event) {
+            const container = document.querySelector('.multiselect-container');
+            if (!container.contains(event.target)) {
+                document.getElementById('field-dropdown').classList.remove('active');
+            }
+        }
+
+        function handleFieldChange(field) {
+            const checkbox = document.getElementById(`field_${field}`);
+            if (checkbox.checked) {
+                selectedFields.add(field);
+            } else {
+                selectedFields.delete(field);
+            }
+            
+            updateFieldDisplay();
+            updateTable();
+        }
+
+        function selectAllFields() {
+            allHeaders.forEach(header => {
+                selectedFields.add(header);
+                document.getElementById(`field_${header}`).checked = true;
+            });
+            updateFieldDisplay();
+            updateTable();
+        }
+
+        function clearAllFields() {
+            selectedFields.clear();
+            allHeaders.forEach(header => {
+                document.getElementById(`field_${header}`).checked = false;
+            });
+            updateFieldDisplay();
+            updateTable();
+        }
+
+        function updateFieldDisplay() {
+            const displayText = document.getElementById('field-display-text');
+            const selectedCount = document.getElementById('selected-count');
+            
+            if (selectedFields.size === 0) {
+                displayText.textContent = 'No fields selected';
+                selectedCount.textContent = '';
+            } else if (selectedFields.size === allHeaders.length) {
+                displayText.textContent = 'All fields selected';
+                selectedCount.textContent = `(${selectedFields.size})`;
+            } else {
+                displayText.textContent = Array.from(selectedFields).slice(0, 2).join(', ') + 
+                    (selectedFields.size > 2 ? '...' : '');
+                selectedCount.textContent = `(${selectedFields.size}/${allHeaders.length})`;
+            }
+        }
+
+        function updateTable() {
+            if (!allData || selectedFields.size === 0) return;
+            
+            const visibleHeaders = allHeaders.filter(header => selectedFields.has(header));
+            createTable(allData, visibleHeaders);
+            updateStats(allData.length, visibleHeaders.length);
+        }
+
+        function createTable(data, headers) {
+            if (table) {
+                table.destroy();
+            }
+
+            const columns = headers.map(header => ({
+                title: header,
+                field: header,
+                sorter: "string",
+                headerFilter: "input",
+                headerFilterPlaceholder: `Filter ${header}...`,
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    let displayValue = value;
+                    
+                    if (typeof value === 'number') {
+                        displayValue = value.toLocaleString();
+                    } else if (typeof value === 'string' && value.length > 50) {
+                        return `<div class="cell-content" title="${value}">${value}</div>`;
+                    }
+                    
+                    return `<div class="cell-content" title="${displayValue}">${displayValue}</div>`;
+                },
+                width: Math.max(120, Math.min(200, header.length * 10 + 60))
+            }));
+
+            table = new Tabulator("#data-table", {
+                data: data,
+                columns: columns,
+                layout: "fitDataStretch",
+                pagination: "local",
+                paginationSize: 25,
+                paginationSizeSelector: [10, 25, 50, 100],
+                movableColumns: true,
+                resizableRows: false,
+                rowHeight: 40,
+                sortOrderReverse: true,
+                groupBy: false,
+                selectable: true,
+                responsiveLayout: "collapse",
+                placeholder: "No data available",
+                height: "500px",
+                tooltips: true,
+                downloadConfig: {
+                    columnHeaders: true,
+                    columnGroups: false,
+                    rowGroups: false,
+                    columnCalcs: false,
+                    dataTree: false
+                }
+            });
+
+            addDownloadButtons();
+        }
+
+        function addDownloadButtons() {
+            const existingButtons = document.querySelector('.download-buttons');
+            if (existingButtons) {
+                existingButtons.remove();
+            }
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'download-buttons';
+            buttonContainer.style.cssText = 'margin-top: 20px; text-align: center; gap: 10px; display: flex; justify-content: center; flex-wrap: wrap;';
+
+            const downloadFormats = [
+                { type: 'csv', label: '📄 Download CSV', color: '#059669' },
+                { type: 'json', label: '📋 Download JSON', color: '#dc2626' },
+                { type: 'xlsx', label: '📊 Download Excel', color: '#2563eb' }
+            ];
+
+            downloadFormats.forEach(format => {
+                const button = document.createElement('button');
+                button.textContent = format.label;
+                button.style.cssText = `
+                    background: ${format.color};
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                `;
+                button.onmouseover = () => button.style.transform = 'translateY(-1px)';
+                button.onmouseout = () => button.style.transform = 'translateY(0)';
+                button.onclick = () => table.download(format.type, `data.${format.type}`);
+                buttonContainer.appendChild(button);
+            });
+
+            document.getElementById('table-container').appendChild(buttonContainer);
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('auto-refresh');
+            
+            if (checkbox.checked) {
+                // Start auto-refresh every 5 minutes
+                refreshInterval = setInterval(() => {
+                    if (document.getElementById('csv-url').value.trim()) {
+                        console.log('Auto-refreshing data...');
+                        loadData();
+                    }
+                }, 5 * 60 * 1000); // 5 minutes
+                console.log('Auto-refresh enabled (5 minutes)');
+            } else {
+                // Stop auto-refresh
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                    refreshInterval = null;
+                }
+                console.log('Auto-refresh disabled');
+            }
+        }
+
+        function updateStats(rows, cols) {
+            document.getElementById('row-count').textContent = rows.toLocaleString();
+            document.getElementById('col-count').textContent = cols.toLocaleString();
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('load-btn').disabled = true;
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('active');
+            document.getElementById('load-btn').disabled = false;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('active');
+        }
+
+        function hideError() {
+            document.getElementById('error-message').classList.remove('active');
+        }
+
+        function showControls() {
+            document.getElementById('controls').classList.add('active');
+        }
+
+        function showTable() {
+            document.getElementById('table-container').classList.add('active');
+        }
+
+        function showStatusBar() {
+            document.getElementById('status-bar').classList.add('active');
+        }
+
+        function setStatus(type, message) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            
+            indicator.className = 'status-indicator ' + type;
+            text.textContent = message;
+        }
+
+        function updateLastUpdated() {
+            const lastUpdated = document.getElementById('last-updated');
+            lastUpdated.textContent = 'Last updated: ' + new Date().toLocaleString();
+        }
+
+        // Handle Enter key in URL input
+        document.getElementById('csv-url').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadData();
+            }
+        });
+    </script>
+</body>
+</html>
